@@ -1,7 +1,9 @@
 
 const {Conflict} = require("http-errors");
 const gravatar = require("gravatar");
+const {nanoid} = require("nanoid");
 
+const {sendEmail} = require("../../helpers");
 const {User} = require("../../models");
 
 const register = async(req, res) => {
@@ -10,10 +12,19 @@ const register = async(req, res) => {
     if(user){
         throw new Conflict("Email in use")
     }
+    const verificationToken = nanoid();
     const avatarURL = gravatar.url(email);
-    const newUser = new User({name, email, avatarURL});
-    newUser.setPassword(password);
-    newUser.save();
+    const newUser = new User({name, email, avatarURL, verificationToken});
+    await newUser.setPassword(password);
+    await newUser.save();
+
+    const mail = {
+        to: email,
+        subject: "Підтвердження email",
+        html: `<a target="_blank" href="http://localhost:3000/api/usersInfo/verify/${verificationToken}">підтвервети email</a>`
+    };
+    
+    await sendEmail(mail);
 
     res.status(201).json({
         status: "success",
@@ -23,6 +34,7 @@ const register = async(req, res) => {
                 email,
                 name,
                 avatarURL,
+                verificationToken,
             }
         }
     })
